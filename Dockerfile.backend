@@ -1,0 +1,20 @@
+# Backend Dockerfile (Express.js)
+FROM node:18-alpine
+
+# Arbeitsverzeichnis setzen
+WORKDIR /app
+
+# package.json und package-lock.json in das Arbeitsverzeichnis kopieren
+COPY package.json package-lock.json ./
+
+# Abhängigkeiten installieren
+RUN npm install
+
+# Restliche Dateien des Frontends kopieren
+COPY . .
+
+# Port für Node.js-Server
+EXPOSE 5000
+
+# Startbefehl
+CMD ["node", "app.js"]
