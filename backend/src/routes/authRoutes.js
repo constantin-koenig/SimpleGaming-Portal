@@ -1,37 +1,42 @@
 // src/routes/authRoutes.js
 const express = require("express");
-const passport = require("passport");
-const jwt = require("jsonwebtoken");
 const router = express.Router();
+const axios = require("axios");
+const authController = require("../controllers/authController");
+const { request } = require('undici');
 
-// Authentifizierungsrouten
-router.get("/discord", passport.authenticate("discord"));
-router.get("/discord/callback", passport.authenticate("discord", {
-  failureRedirect: "/",
-}), (req, res) => {
-  // Hier erfolgt die Weiterleitung nach erfolgreichem Login
-  const token = jwt.sign({ id: req.user.id, role: req.user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
-  res.cookie("access_token", token, { httpOnly: true });
-  res.redirect("/dashboard");  // Oder wo du nach erfolgreichem Login hinleiten willst
-});
+router.post("/discord", async (req, res) => {
+  const { code } = req.body;
 
-// Refresh Token Route zum Erneuern des Access Tokens
-router.post("/refresh", (req, res) => {
-  const refreshToken = req.cookies.refresh_token;
-  if (!refreshToken) {
-    return res.status(403).json({ message: "Refresh Token fehlt" });
+  if (!code) {
+    return res.status(400).json({ message: "Discord-ID oder Code fehlt" });
   }
 
-  jwt.verify(refreshToken, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ message: "Ungültiges Refresh Token" });
-
-    const newAccessToken = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
-      expiresIn: "1h",  // Neuer Access Token mit 1 Stunde Gültigkeit
+  try {
+    const tokenResponseData = await request('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: `${process.env.NEXT_PUBLIC_URL}/api/auth/discord/callback`,
+        scope: 'identify',
+      }).toString(),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
     });
 
-    res.cookie("access_token", newAccessToken, { httpOnly: true });
-    res.status(200).json({ message: "Access Token erneuert" });
-  });
+    const oauthData = await tokenResponseData.body.json();
+    console.log("oauthData");
+    console.log(oauthData);
+    return authController.loginWithDiscord(req, res, oauthData.access_token);
+  } catch (error) {
+    // NOTE: An unauthorized token will not throw an error
+    // tokenResponseData.statusCode will be 401
+    console.error(error);
+  }
 });
 
 module.exports = router;

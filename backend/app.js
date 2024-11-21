@@ -2,7 +2,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
-const passport = require("passport");
 const session = require("express-session");
 const authRoutes = require("./src/routes/authRoutes");
 const userRoutes = require("./src/routes/userRoutes");
@@ -17,6 +16,7 @@ app.use(cookieParser());
 app.use(session({ secret: "discord_secret", resave: false, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
+app.use(express.json());
 
 // MongoDB-Verbindung
 mongoose.connect(process.env.MONGO_URI, {useUnifiedTopology: true })

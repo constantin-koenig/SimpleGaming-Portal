@@ -1,26 +1,8 @@
 // pages/api/auth/discord.js
 export default async function handler(req, res) {
-    try {
-      // Weiterleitung an das Backend für die Discord-Authentifizierung
-      const backendUrl = `http://localhost:5000/auth/discord`;
-  
-      // Optional: Hier kannst du auch zusätzliche Header oder Cookies hinzufügen, wenn erforderlich
-      const response = await fetch(backendUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-  
-      if (response.ok) {
-        // Wenn die Antwort erfolgreich ist, leite den Benutzer zur Discord-Auth-URL weiter
-        const redirectUrl = await response.text();
-        res.redirect(redirectUrl);
-      } else {
-        res.status(500).json({ message: 'Fehler bei der Weiterleitung zur Discord-Auth.' });
-      }
-    } catch (error) {
-      res.status(500).json({ message: 'Fehler bei der API-Anfrage an das Backend' });
-    }
-  }
-  
+  const redirect_uri = `${process.env.NEXT_PUBLIC_URL}/api/auth/discord/callback`;
+  const client_id = process.env.DISCORD_CLIENT_ID;
+  //const discordAuthUrl = `https://discord.com/oauth2/authorize?client_id=${client_id}&redirect_uri=${encodeURIComponent(redirect_uri)}&response_type=code&scope=identify%20email%20guilds`;
+  const discordAuthUrl = `https://discord.com/oauth2/authorize?client_id=${client_id}&response_type=code&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=identify+guilds+email`;
+  res.redirect(discordAuthUrl);
+}

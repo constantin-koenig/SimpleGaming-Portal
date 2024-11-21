@@ -1,6 +1,9 @@
 # Frontend Dockerfile (Next.js)
 FROM node:18-alpine
 
+# Abhängigkeiten und Tools installieren (inkl. curl)
+RUN apk add --no-cache bash curl
+
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 

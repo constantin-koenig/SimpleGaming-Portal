@@ -6,7 +6,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:5000   # Interner Backend-Zugang
+      - BACKEND_PRIVATE_API_URL=http://backend:5000   # Interner Backend-Zugang
+      - NEXT_PUBLIC_URL=http://${FRONTEND_PUBLIC_ADDRESS}:${FRONTEND_PUBLIC_PORT}  
     networks:
       - community_network
 
@@ -22,6 +23,7 @@ services:
       - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/${MONGO_DB_NAME}?authSource=admin
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - NEXT_PUBLIC_URL=http://${FRONTEND_PUBLIC_ADDRESS}:${FRONTEND_PUBLIC_PORT}
     networks:
       - community_network
 
