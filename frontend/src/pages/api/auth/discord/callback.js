@@ -1,6 +1,9 @@
-// Seiten-API-Callback, die den Code an das Backend weiterleitet
-import fetch from 'node-fetch';
-
+// pages/api/auth/callback.js
+let fetch;
+if (!fetch) {
+  // Dynamischer Import, um `node-fetch` zu laden
+  fetch = (await import('node-fetch')).default;
+}
 export default async function handler(req, res) {
   const { code } = req.query;
 
@@ -9,16 +12,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Leite den Authorization Code an das Backend weiter
+    // Authorization Code an das Backend weiterleiten
     const backendApiUrl = `${process.env.BACKEND_PRIVATE_API_URL}/auth/discord`;
-    console.error(code);
-    // Stelle sicher, dass du die Daten im richtigen Format sendest
     const response = await fetch(backendApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ code }), // Sende nur den Code als Parameter
+      body: JSON.stringify({ code }),
     });
 
     if (!response.ok) {
@@ -26,8 +27,15 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    if (data.token) {
-      res.status(200).json({ message: "Erfolgreich eingeloggt", token: data.token });
+    if (data.accessToken && data.refreshToken) {
+      // Setze Cookies im Server-Response-Header
+      res.setHeader('Set-Cookie', [
+        `access_token=${data.accessToken}; HttpOnly; Max-Age=${15 * 60}; Path=/; Secure; SameSite=Strict`,
+        `refresh_token=${data.refreshToken}; HttpOnly; Max-Age=${30 * 86400}; Path=/; Secure; SameSite=Strict`,
+      ]);
+
+      // Weiterleitung auf das Dashboard
+      res.redirect('/dashboard');
     } else {
       res.status(400).json({ message: "Token konnte nicht erstellt werden" });
     }

@@ -6,7 +6,6 @@ const session = require("express-session");
 const authRoutes = require("./src/routes/authRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const cookieParser = require("cookie-parser");
-require("./src/config/passport");
 require('dotenv').config({ path: './.env' });
 
 dotenv.config();
@@ -14,8 +13,6 @@ const app = express();
 
 app.use(cookieParser());
 app.use(session({ secret: "discord_secret", resave: false, saveUninitialized: false }));
-app.use(passport.initialize());
-app.use(passport.session());
 app.use(express.json());
 
 // MongoDB-Verbindung

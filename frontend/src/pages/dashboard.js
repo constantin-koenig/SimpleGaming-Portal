@@ -1,64 +1,66 @@
+// pages/dashboard.js
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 const Dashboard = () => {
-  const [users, setUsers] = useState([]);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Holen der Access Token aus Cookies
-    const accessToken = document.cookie.split("; ").find(row => row.startsWith("access_token")).split("=")[1];
-
-    if (!accessToken) {
-      router.push("/login"); // Wenn kein Access Token vorhanden, zum Login weiterleiten
-    }
-
-    // Abrufen der Benutzer aus dem Backend
-    const fetchUsers = async () => {
+    const checkAuthentication = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/users", {
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-          },
+        const response = await fetch("/api/auth/check", {
+          method: "GET",
+          credentials: "include",
         });
-        const data = await res.json();
-        setUsers(data);
+        
+        if (response.ok) {
+          console.log("Token ist gültig.");
+
+          // Benutzerdaten abrufen, wenn die Authentifizierung erfolgreich ist
+          const userDataResponse = await fetch("/api/user", {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include", // Cookies werden mitgesendet
+          });
+
+          if (userDataResponse.ok) {
+            const data = await userDataResponse.json();
+            setUser(data);
+          } else {
+            console.error("Fehler beim Abrufen der Benutzerdaten.");
+          }
+        } else if (response.status === 401) {
+          console.error("Nicht authentifiziert, Weiterleitung zur Login-Seite");
+          router.push("/login");
+        } else {
+          console.error("Fehler bei der Authentifizierungsüberprüfung:", await response.json());
+        }
       } catch (error) {
-        console.error("Fehler beim Abrufen der Benutzer:", error);
+        console.error("Fehler bei der Authentifizierung:", error);
       } finally {
-        setLoading(false);
+        setLoading(false); // Ladevorgang beenden, nachdem alle Aktionen abgeschlossen sind
       }
     };
 
-    fetchUsers();
+    checkAuthentication();
   }, [router]);
 
   if (loading) return <div>Loading...</div>;
 
   return (
     <div>
-      <h1>Dashboard - Benutzerübersicht</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map(user => (
-            <tr key={user.id}>
-              <td>{user.id}</td>
-              <td>{user.name}</td>
-              <td>{user.email}</td>
-              <td>{user.role}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <h1>Willkommen, {user?.username}!</h1>
+      <p>Hier sind deine Informationen:</p>
+      <ul>
+        <li>ID: {user?.id}</li>
+        <li>Name: {user?.username}</li>
+        <li>Email: {user?.email}</li>
+        <li>Rolle: {user?.role}</li>
+        <li>Avatar URL: {user?.avatarURL}</li>
+        {user?.avatarURL && <img src={user.avatarURL} alt={`${user.username}'s avatar`} />}
+      </ul>
     </div>
   );
 };
