@@ -22,7 +22,7 @@ const updateUserData = async () => {
     for (const tokenData of refreshTokens) {
         try {
             // Check if token is expired
-            if (new Date(tokenData.expiresAt) < now) {
+            if (new Date(tokenData.expiresAt) < new Date (Date.now)) {
                 console.log(`Token for ${tokenData.discordId} is expired. Deleting...`);
                 await RefreshToken.deleteMany({ discordId: tokenData.discordId });
                 continue; // Skip to next token
@@ -52,10 +52,11 @@ const updateUserData = async () => {
                 { discordId: userData.id },
                 {
                     username: userData.username,
+                    globalname: userData.global_name,
                     discriminator: userData.discriminator,
                     avatar: userData.avatar,
                     email: userData.email,
-                    updatedAt: Date.now(),
+                    updatedAt: new Date(Date.now()),
                 }
             );
 
@@ -77,7 +78,7 @@ const updateUserData = async () => {
 // set Cron-Job
 cron.schedule('*/30 * * * *', async () => {
     await updateUserData();
-    console.log('Update completed. Time: ' + new Date (Date.now()));
+    console.log('Update completed. Time: ' + new Date(Date.now()));
 });
 
 module.exports = updateUserData;

@@ -6,6 +6,8 @@ const crypto = require('crypto');
 
 // Models
 const User = require('../models/User');
+const Role = require('../models/Roles');
+const UserRole = require('../models/User_Role');
 const DiscordRefreshToken = require('../models/DiscordRefreshToken');
 const OwnRefreshToken = require('../models/OwnRefreshTokens');
 const { encrypt, decrypt } = require('../utils/encryption');
@@ -54,7 +56,6 @@ router.get('/callback', async (req, res) => {
         });
 
         const userData = userResponse.data;
-
          // Check if user exists
          let user = await User.findOne({ discordId: userData.id });
 
@@ -66,6 +67,10 @@ router.get('/callback', async (req, res) => {
                  user.username = userData.username;
                  updates = true;
              }
+             if (user.globalname !== userData.global_name) {
+                user.globalname = userData.global_name;
+                updates = true;
+            }
              if (user.email !== userData.email) {
                  user.email = userData.email;
                  updates = true;
@@ -87,15 +92,32 @@ router.get('/callback', async (req, res) => {
              }
          } else {
              // Create new user
+             const userCount = await User.countDocuments({});
              user = new User({
                  discordId: userData.id,
                  username: userData.username,
+                 globalname: userData.global_name,
                  email: userData.email,
                  discriminator: userData.discriminator,
                  avatar: userData.avatar,
              });
              await user.save();
              console.log(`New user created: ${user.discordId}`);
+             if (userCount === 0) {
+                const ownerRole = await Role.findOne({ name: 'Owner' });
+                if (ownerRole) {
+                  await UserRole.create({ user: user._id, role: ownerRole._id });
+                  console.log('First User -> Owner Role assigned');
+                }
+            }
+            else {
+                // If not first user, assign user role
+                const defaultUserRole = await Role.findOne({ name: 'User' });
+                if (defaultUserRole) {
+                  await UserRole.create({ user: user._id, role: defaultUserRole._id });
+                  console.log('New User -> User Role assigned');
+                }
+            }
          }
  
          // Save Discord refresh token
