@@ -6,11 +6,11 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const { requirePermission } = require('../middlewares/permissionMiddleware');
 
 // Beispiel: Nur User mit "view_account" Permission
-router.get('/account', 
+router.get('/user/dashboard', 
   authMiddleware,
-  requirePermission(['view_account']), 
+  requirePermission(['user_view_dashboard']), 
   (req, res) => {
-    res.send('Willkommen auf deiner Account-Seite!');
+    res.send('Willkommen auf deiner Dashboard-Seite!');
   }
 );
 

@@ -29,8 +29,15 @@ router.get('/discord', (req, res) => {
 });
 
 // Discord callback route
-router.get('/callback', async (req, res) => {
-    const { code } = req.query;
+router.post('/callback', async (req, res) => {
+    const { code } = req.body; 
+
+    if (!req.body || !req.body.code) {
+        return res.status(400).json({ 
+            error: "Bad Request", 
+            message: "Request body is missing or 'code' parameter is not provided." 
+        });
+    }
 
     if (!code) {
         return res.status(400).send('No code provided!');
@@ -153,18 +160,22 @@ router.get('/callback', async (req, res) => {
         }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
         // Send cookies and redirect
-        res.cookie('access_token', accessToken, { httpOnly: true });
+
         res.cookie('refresh_token', refreshToken, { 
             httpOnly: true,
             path: 'http:localhost:5000/api/auth/refresh/' 
         });
-        res.redirect('/');
+        res.status(200).json({
+            access_token,
+            message: 'Login successful',
+        });
     } catch (error) {
         if (error.response) {
             // If token was already used or is invalid
             if (error.response.status === 400) {
+                console.log('Bad Request: ', error.response.data);
                 console.error('Bad Request: ', error.response.data);
-                res.redirect('/api/auth/discord');
+                res.status(500).send('Bad Request');
             } else if (error.response.status === 401) {
                 console.error('Unauthorized: ', error.response.data);
                 return res.status(401).send('Unauthorized');
@@ -221,6 +232,7 @@ router.get('/callback', async (req, res) => {
 // Token refresh route
 router.post('/refresh', verifyRefreshToken, async (req, res) => {
     try {
+        console.log('Refresh token verified, user ID:', req.userId);
         const userId = req.userId;
 
         // Generate new access token
@@ -233,8 +245,10 @@ router.post('/refresh', verifyRefreshToken, async (req, res) => {
             id: user.discordId
         }, process.env.JWT_SECRET, { expiresIn: '15m' });
 
-        res.cookie('access_token', newAccessToken, { httpOnly: true });
-        res.status(200).send({ message: 'Access token refreshed' });
+        res.status(200).json({
+            access_token: newAccessToken,
+            message: 'Refresh successful',
+        });
     } catch (error) {
         console.error(error.message);
         res.status(500).send('Error refreshing token');

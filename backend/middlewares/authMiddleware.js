@@ -3,7 +3,16 @@ const User = require('../models/User');
 
 module.exports = async function authMiddleware(req, res, next) {
   try {
-    const token = req.cookies?.access_token; 
+    const authHeader = req.headers.authorization;
+
+    // Prüfen, ob der Header existiert und korrekt ist
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Unauthorized: No token provided" });
+    }
+
+    // Extrahieren des Tokens aus dem Header
+    const token = authHeader.split(" ")[1];
+
     if (!token) {
       return res.status(401).send('No access token provided');
     }
