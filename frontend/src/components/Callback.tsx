@@ -1,11 +1,11 @@
 import React, { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 
 const Callback: React.FC = () => {
     const [searchParams] = useSearchParams();
     const { accessToken, setAccessToken } = useAuth(); // Hook-Aufruf innerhalb der Komponente
-
+    const navigate = useNavigate();
     useEffect(() => {
         const sendCodeToBackend = async () => {
             const code = searchParams.get("code");
@@ -45,7 +45,7 @@ const Callback: React.FC = () => {
 
                     // Redirect the user or perform other actions
                     alert("Login successful! Redirecting...");
-                    window.location.href = "/dashboard"; // Replace with your app's dashboard URL
+                    navigate("/dashboard"); // Replace with your app's dashboard URL
                 } else {
                     console.error("Access token not provided in response.");
                     alert("Login failed. No access token received.");
