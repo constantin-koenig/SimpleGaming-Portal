@@ -19,9 +19,6 @@ const DISCORD_AUTH_URL = "https://discord.com/api/oauth2/authorize";
 const DISCORD_TOKEN_URL = "https://discord.com/api/oauth2/token";
 const DISCORD_API_URL = "https://discord.com/api/users/@me";
 
-// Token expiration time
-const tokenValidityDays = 30;
-
 // Discord login route
 router.get('/discord', (req, res) => {
     const redirectUri = `${DISCORD_AUTH_URL}?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${process.env.DISCORD_REDIRECT_URI}&response_type=code&scope=email+identify`;
@@ -132,13 +129,13 @@ router.post('/callback', async (req, res) => {
          await DiscordRefreshToken.create({
              discordId: userData.id,
              token: encrypt(discord_refresh_token),
-             expiresAt: new Date(Date.now() + tokenValidityDays * 24 * 60 * 60 * 1000),
+             expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
          });
 
         // Generate JWT Access token
         const accessToken = jwt.sign({
             id: userData.id
-        }, process.env.JWT_SECRET, { expiresIn: '15m' });
+        }, process.env.JWT_SECRET, { expiresIn: '15s' });
 
         // Generate own refresh token
         const generatedRefreshToken = crypto.randomBytes(64).toString('hex');
@@ -151,7 +148,7 @@ router.post('/callback', async (req, res) => {
         await OwnRefreshToken.create({
             userId: userData.id,
             token: generatedRefreshToken,
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 30 Tage gültig
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days expiration
         });
 
         // Generate JWT Refresh token
@@ -163,10 +160,11 @@ router.post('/callback', async (req, res) => {
 
         res.cookie('refresh_token', refreshToken, { 
             httpOnly: true,
-            path: 'http:localhost:5000/api/auth/refresh/' 
+            path: 'http:localhost:5000/api/auth/refresh/',
+            expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         });
         res.status(200).json({
-            access_token,
+            access_token: accessToken,
             message: 'Login successful',
         });
     } catch (error) {
@@ -243,7 +241,7 @@ router.post('/refresh', verifyRefreshToken, async (req, res) => {
 
         const newAccessToken = jwt.sign({
             id: user.discordId
-        }, process.env.JWT_SECRET, { expiresIn: '15m' });
+        }, process.env.JWT_SECRET, { expiresIn: '15s' });
 
         res.status(200).json({
             access_token: newAccessToken,

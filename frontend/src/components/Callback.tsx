@@ -13,7 +13,7 @@ const Callback: React.FC = () => {
             if (!code) {
                 console.error("No code provided in the query params.");
                 alert("Authorization code missing. Please try logging in again.");
-                return;
+                navigate("/login");
             }
 
             try {
@@ -35,7 +35,7 @@ const Callback: React.FC = () => {
                 }
 
                 const data = await response.json();
-                const { access_token } = data;
+                const access_token  = data.access_token;
 
 
                 if (access_token) {
@@ -58,7 +58,7 @@ const Callback: React.FC = () => {
         };
 
         sendCodeToBackend();
-    }, [searchParams, accessToken]);
+    }, [searchParams]);
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">

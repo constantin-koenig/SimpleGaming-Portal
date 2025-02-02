@@ -21,7 +21,7 @@ async function initializeSystem() {
   }
 
   // 2. Grundlegende Permissions anlegen
-  const basePermissions = ['view_account', 'edit_profile', 'create_post, user_view_dashboard'];
+  const basePermissions = ['view_account', 'manage_roles'];
   for (const permName of basePermissions) {
     let perm = await Permission.findOne({ name: permName });
     if (!perm) {

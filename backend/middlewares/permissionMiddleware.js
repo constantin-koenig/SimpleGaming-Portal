@@ -3,7 +3,8 @@
 const UserRole = require('../models/User_Role');
 const RolePermission = require('../models/Role_Permissions');
 const Permission = require('../models/Permissions');
-const User = require('../models/User')
+const User = require('../models/User');
+const { use } = require('../routes/auth');
 
 async function getUserPermissions(userId) {
 
@@ -18,6 +19,8 @@ async function getUserPermissions(userId) {
     // Keine Rollen → Keine Permissions
     return { allowed: new Set(), denied: new Set(), isOwner: false };
   }
+  console.log(user._id);
+  console.log("UserRollen" + userRoles.role);
 
   // Check, ob eine Rolle priority=1 hat
   const hasOwnerRole = userRoles.some(ur => ur.role.priority === 1);

@@ -3,7 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext"; // Importiere den AuthProvider
 import Login from "./components/Login";
 import Callback from "./components/Callback";
-import ProtectedRoute from "./components/ProtectedRoute";
+import Dashboard from "./pages/dashboard";
+import RolePage from "./pages/RolePage";
 
 const App: React.FC = () => {
     return (
@@ -12,13 +13,14 @@ const App: React.FC = () => {
                 <div className="min-h-screen bg-gray-50">
                     <Routes>
                         {/* Login Page */}
-                        <Route path="/" element={<Login />} />
+                        <Route path="/login" element={<Login />} />
 
                         {/* Callback Page */}
                         <Route path="/callback" element={<Callback />} />
 
                         {/* Protected Route */}
-                        <Route path="/dashboard" element={<ProtectedRoute />} />
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/roles" element={<RolePage />} />
 
                         {/* Optional: Fallback for undefined routes */}
                         <Route
