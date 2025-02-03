@@ -1,144 +1,192 @@
-import { useState, useEffect } from "react";
-import { useProtectedFetch } from "./useProtectedFetch";
+import { useProtectedFetch } from "./useProtectedFetch"; // Passe ggf. den Pfad an
+import { useCallback } from "react";
 
-export type Role = {
+// Interfaces (optional, aber hilfreich für Typisierung)
+export interface Role {
   _id: string;
   name: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
+  priority: number;
+}
 
-export type Permission = {
+export interface Permission {
   _id: string;
   name: string;
+}
+
+export interface RolePermission {
+  _id: string;
+  role: string | Role; // `role` statt `roleId`, weil dein Schema `role` verwendet
+  permission: string | Permission; // `permission` statt `permissionId`
+  effect: "allow" | "deny"; // `effect` statt `action`
+}
+
+
+// Basis-URL deines Backends – idealerweise in einer Umgebungsvariablen speichern
+const BASE_URL = "/api/protected";
+
+// 1️⃣ Hook: Rolle erstellen
+export const useCreateRole = () => {
+  const protectedFetch = useProtectedFetch();
+
+  const createRole = useCallback(async (name: string): Promise<Role | null> => {
+    const url = `${BASE_URL}/roles`;
+    const responseText = await protectedFetch(url, "POST", { name });
+    if (!responseText || responseText === "Ressource geschützt") return null;
+    try {
+      const role: Role = JSON.parse(responseText);
+      return role;
+    } catch (error) {
+      console.error("Fehler beim Parsen der Rolle:", error);
+      return null;
+    }
+  }, [protectedFetch]);
+
+  return { createRole };
 };
 
-export type RolePermission = {
-  roleId: string;
-  permissionId: string;
+// 2️⃣ Hook: Alle Rollen abrufen
+export const useGetRoles = () => {
+  const protectedFetch = useProtectedFetch();
+
+  const getRoles = useCallback(async (): Promise<Role[] | null> => {
+    const url = `${BASE_URL}/roles`;
+    const responseText = await protectedFetch(url, "GET");
+    if (!responseText || responseText === "Ressource geschützt") return null;
+    try {
+      const roles: Role[] = JSON.parse(responseText);
+      return roles;
+    } catch (error) {
+      console.error("Fehler beim Parsen der Rollen:", error);
+      return null;
+    }
+  }, [protectedFetch]);
+
+  return { getRoles };
 };
 
-export const useRolesPermissions = () => {
-  const fetchProtectedResource = useProtectedFetch();
+// 3️⃣ Hook: Eine Rolle bearbeiten
+export const useUpdateRole = () => {
+  const protectedFetch = useProtectedFetch();
 
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  // 🔹 Rollen abrufen
-  const fetchRoles = async () => {
-    setLoading(true);
-    setError(null);
-
-    const data = await fetchProtectedResource("/api/protected/roles", "GET");
-
-    if (data === "Ressource geschützt") {
-      setError("Zugriff verweigert. Bitte überprüfe deine Berechtigungen.");
-      setLoading(false);
-      return;
+  const updateRole = useCallback(async (roleId: string, name: string): Promise<Role | null> => {
+    const url = `${BASE_URL}/roles/${roleId}`;
+    const responseText = await protectedFetch(url, "PUT", { name });
+    if (!responseText || responseText === "Ressource geschützt") return null;
+    try {
+      const updatedRole: Role = JSON.parse(responseText);
+      return updatedRole;
+    } catch (error) {
+      console.error("Fehler beim Parsen der aktualisierten Rolle:", error);
+      return null;
     }
+  }, [protectedFetch]);
 
-    if (data) {
-      try {
-        setRoles(JSON.parse(data));
-      } catch (error) {
-        console.error("Fehler beim Parsen der Rollen:", error);
-        setError("Fehler beim Laden der Rollen.");
-      }
+  return { updateRole };
+};
+
+// 4️⃣ Hook: Eine Rolle löschen
+export const useDeleteRole = () => {
+  const protectedFetch = useProtectedFetch();
+
+  const deleteRole = useCallback(async (roleId: string): Promise<boolean> => {
+    const url = `${BASE_URL}/roles/${roleId}`;
+    const responseText = await protectedFetch(url, "DELETE");
+    if (!responseText || responseText === "Ressource geschützt") return false;
+    try {
+      const responseObj = JSON.parse(responseText);
+      return responseObj.message === "Rolle erfolgreich gelöscht";
+    } catch (error) {
+      console.error("Fehler beim Parsen der Lösch-Antwort:", error);
+      return false;
     }
+  }, [protectedFetch]);
 
-    setLoading(false);
-  };
+  return { deleteRole };
+};
 
-  // 🔹 Neue Rolle erstellen
-  const createRole = async (name: string) => {
-    setLoading(true);
-    const data = await fetchProtectedResource("/api/protected/roles", "POST", { name });
+// 5️⃣ Hook: Berechtigungen einer Rolle anzeigen
+export const useGetRolePermissions = () => {
+  const protectedFetch = useProtectedFetch();
 
-    if (data && data !== "Ressource geschützt") {
-      await fetchRoles();
+  const getRolePermissions = useCallback(async (roleId: string): Promise<RolePermission[] | null> => {
+    const url = `${BASE_URL}/roles/${roleId}/permissions`;
+    const responseText = await protectedFetch(url, "GET");
+    if (!responseText || responseText === "Ressource geschützt") return null;
+    try {
+      const rolePermissions: RolePermission[] = JSON.parse(responseText);
+      return rolePermissions;
+    } catch (error) {
+      console.error("Fehler beim Parsen der Rollen-Berechtigungen:", error);
+      return null;
     }
+  }, [protectedFetch]);
 
-    setLoading(false);
-  };
+  return { getRolePermissions };
+};
 
-  // 🔹 Rolle bearbeiten
-  const updateRole = async (roleId: string, name: string) => {
-    setLoading(true);
-    const data = await fetchProtectedResource(`/api/protected/roles/${roleId}`, "PUT", { name });
+// 6️⃣ Hook: Berechtigung einer Rolle hinzufügen/aktualisieren
+export const useAddRolePermission = () => {
+  const protectedFetch = useProtectedFetch();
 
-    if (data && data !== "Ressource geschützt") {
-      await fetchRoles();
+  const addRolePermission = useCallback(async (
+    roleId: string,
+    permissionId: string,
+    action: "allow" | "deny"
+  ): Promise<RolePermission | null> => {
+    const url = `${BASE_URL}/roles/${roleId}/permissions`;
+    const responseText = await protectedFetch(url, "POST", { permissionId, action });
+    if (!responseText || responseText === "Ressource geschützt") return null;
+    try {
+      const rolePermission: RolePermission = JSON.parse(responseText);
+      return rolePermission;
+    } catch (error) {
+      console.error("Fehler beim Parsen der Rollen-Berechtigung:", error);
+      return null;
     }
+  }, [protectedFetch]);
 
-    setLoading(false);
-  };
+  return { addRolePermission };
+};
 
-  // 🔹 Rolle löschen
-  const deleteRole = async (roleId: string) => {
-    setLoading(true);
-    const data = await fetchProtectedResource(`/api/protected/roles/${roleId}`, "DELETE");
+// 7️⃣ Hook: Berechtigung von einer Rolle entfernen
+export const useDeleteRolePermission = () => {
+  const protectedFetch = useProtectedFetch();
 
-    if (data && data !== "Ressource geschützt") {
-      await fetchRoles();
+  const deleteRolePermission = useCallback(async (
+    roleId: string,
+    permissionId: string
+  ): Promise<boolean> => {
+    const url = `${BASE_URL}/roles/${roleId}/permissions/${permissionId}`;
+    const responseText = await protectedFetch(url, "DELETE");
+    if (!responseText || responseText === "Ressource geschützt") return false;
+    try {
+      const responseObj = JSON.parse(responseText);
+      return responseObj.message === "Berechtigung erfolgreich entfernt";
+    } catch (error) {
+      console.error("Fehler beim Parsen der Antwort zum Entfernen der Berechtigung:", error);
+      return false;
     }
+  }, [protectedFetch]);
 
-    setLoading(false);
-  };
+  return { deleteRolePermission };
+};
 
-  // 🔹 Berechtigungen einer Rolle abrufen
-  const fetchRolePermissions = async (roleId: string): Promise<Permission[]> => {
-    setLoading(true);
-    const data = await fetchProtectedResource(`/api/protected/roles/${roleId}/permissions`, "GET");
+// 8️⃣ Hook: Alle Berechtigungen abrufen
+export const useGetPermissions = () => {
+  const protectedFetch = useProtectedFetch();
 
-    if (data === "Ressource geschützt") {
-      setError("Zugriff verweigert. Bitte überprüfe deine Berechtigungen.");
-      setLoading(false);
-      return [];
+  const getPermissions = useCallback(async (): Promise<Permission[] | null> => {
+    const url = `${BASE_URL}/permissions`;
+    const responseText = await protectedFetch(url, "GET");
+    if (!responseText || responseText === "Ressource geschützt") return null;
+    try {
+      const permissions: Permission[] = JSON.parse(responseText);
+      return permissions;
+    } catch (error) {
+      console.error("Fehler beim Parsen der Berechtigungen:", error);
+      return null;
     }
+  }, [protectedFetch]);
 
-    setLoading(false);
-    return data ? JSON.parse(data) : [];
-  };
-
-  // 🔹 Berechtigung zu einer Rolle hinzufügen
-  const addPermissionToRole = async (roleId: string, permissionId: string) => {
-    setLoading(true);
-    const data = await fetchProtectedResource(`/api/protected/roles/${roleId}/permissions`, "POST", { permissionId });
-
-    if (data && data !== "Ressource geschützt") {
-      await fetchRoles();
-    }
-
-    setLoading(false);
-  };
-
-  // 🔹 Berechtigung von einer Rolle entfernen
-  const removePermissionFromRole = async (roleId: string, permissionId: string) => {
-    setLoading(true);
-    const data = await fetchProtectedResource(`/api/protected/roles/${roleId}/permissions/${permissionId}`, "DELETE");
-
-    if (data && data !== "Ressource geschützt") {
-      await fetchRoles();
-    }
-
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchRoles();
-  }, []);
-
-  return {
-    roles,
-    error,
-    loading,
-    fetchRoles,
-    createRole,
-    updateRole,
-    deleteRole,
-    fetchRolePermissions,
-    addPermissionToRole,
-    removePermissionFromRole,
-  };
+  return { getPermissions };
 };

@@ -19,8 +19,6 @@ async function getUserPermissions(userId) {
     // Keine Rollen → Keine Permissions
     return { allowed: new Set(), denied: new Set(), isOwner: false };
   }
-  console.log(user._id);
-  console.log("UserRollen" + userRoles.role);
 
   // Check, ob eine Rolle priority=1 hat
   const hasOwnerRole = userRoles.some(ur => ur.role.priority === 1);

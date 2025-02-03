@@ -1,168 +1,218 @@
-import React, { useState } from "react";
-import { useRolesPermissions, Role, Permission } from "../hooks/useRolesPermissions";
+// Rollenverwaltung mit korrektem Schema
+import React, { useState, useEffect } from 'react';
+import {
+  Role,
+  Permission,
+  RolePermission,
+  useGetRoles,
+  useGetPermissions,
+  useGetRolePermissions,
+  useAddRolePermission,
+  useDeleteRolePermission,
+} from '../hooks/useRolesPermissions';
 
-const RolesPage: React.FC = () => {
-  const {
-    roles,
-    error,
-    loading,
-    createRole,
-    updateRole,
-    deleteRole,
-    fetchRolePermissions,
-    addPermissionToRole,
-    removePermissionFromRole,
-  } = useRolesPermissions();
+// Toggle für Berechtigungen
+interface PermissionToggleProps {
+  currentState: "allow" | "neutral" | "deny";
+  onChange: (newState: "allow" | "neutral" | "deny") => void;
+}
 
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [rolePermissions, setRolePermissions] = useState<Permission[]>([]);
-  const [newRoleName, setNewRoleName] = useState("");
-  const [newPermissionId, setNewPermissionId] = useState("");
-
-  // 🔹 Rolle auswählen & Berechtigungen laden
-  const handleSelectRole = async (role: Role) => {
-    setSelectedRole(role);
-    const permissions = await fetchRolePermissions(role._id);
-    setRolePermissions(permissions);
-  };
-
-  // 🔹 Neue Rolle erstellen
-  const handleCreateRole = async () => {
-    if (newRoleName.trim() === "") return;
-    await createRole(newRoleName);
-    setNewRoleName("");
-  };
-
-  // 🔹 Rolle umbenennen
-  const handleUpdateRole = async () => {
-    if (!selectedRole || newRoleName.trim() === "") return;
-    await updateRole(selectedRole._id, newRoleName);
-    setSelectedRole(null);
-    setNewRoleName("");
-  };
-
-  // 🔹 Rolle löschen
-  const handleDeleteRole = async () => {
-    if (!selectedRole) return;
-    await deleteRole(selectedRole._id);
-    setSelectedRole(null);
-    setRolePermissions([]);
-  };
-
-  // 🔹 Berechtigung zur Rolle hinzufügen
-  const handleAddPermission = async () => {
-    if (!selectedRole || newPermissionId.trim() === "") return;
-    await addPermissionToRole(selectedRole._id, newPermissionId);
-    const updatedPermissions = await fetchRolePermissions(selectedRole._id);
-    setRolePermissions(updatedPermissions);
-    setNewPermissionId("");
-  };
-
-  // 🔹 Berechtigung von der Rolle entfernen
-  const handleRemovePermission = async (permissionId: string) => {
-    if (!selectedRole) return;
-    await removePermissionFromRole(selectedRole._id, permissionId);
-    setRolePermissions((prev) => prev.filter((perm) => perm._id !== permissionId));
+const PermissionToggle: React.FC<PermissionToggleProps> = ({ currentState, onChange }) => {
+  const getButtonStyle = (buttonState: "allow" | "neutral" | "deny") => {
+    let background = 'lightgray';
+    let color = 'black';
+    if (currentState === buttonState) {
+      if (buttonState === 'allow') {
+        background = 'green';
+        color = 'white';
+      } else if (buttonState === 'deny') {
+        background = 'red';
+        color = 'white';
+      }
+    }
+    return {
+      background,
+      color,
+      border: 'none',
+      padding: '4px 8px',
+      cursor: 'pointer',
+    };
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Rollenverwaltung</h1>
+    <div style={{ display: 'flex', gap: '8px' }}>
+      <button style={getButtonStyle('allow')} onClick={() => onChange('allow')}>
+        ✓
+      </button>
+      <button style={getButtonStyle('neutral')} onClick={() => onChange('neutral')}>
+        –
+      </button>
+      <button style={getButtonStyle('deny')} onClick={() => onChange('deny')}>
+        ✗
+      </button>
+    </div>
+  );
+};
 
-      {/* 🔹 Rollenliste */}
-      <div className="flex gap-6">
-        <div className="w-1/3">
-          <h2 className="text-xl font-semibold mb-2">Rollen</h2>
-          {loading && <p>Lade Rollen...</p>}
-          {error && <p className="text-red-500">{error}</p>}
-          <ul className="border rounded-md p-2 bg-gray-100">
-            {roles.map((role) => (
-              <li
-                key={role._id}
-                onClick={() => handleSelectRole(role)}
-                className={`cursor-pointer p-2 rounded-md ${
-                  selectedRole?._id === role._id ? "bg-blue-300" : "hover:bg-blue-200"
-                }`}
-              >
-                {role.name}
-              </li>
-            ))}
-          </ul>
+const RolesManagement: React.FC = () => {
+  // Hooks zum Abrufen der Daten
+  const { getRoles } = useGetRoles();
+  const { getPermissions } = useGetPermissions();
+  const { getRolePermissions } = useGetRolePermissions();
+  const { addRolePermission } = useAddRolePermission();
+  const { deleteRolePermission } = useDeleteRolePermission();
 
-          {/* 🔹 Neue Rolle hinzufügen */}
-          <div className="mt-4">
-            <input
-              type="text"
-              value={newRoleName}
-              onChange={(e) => setNewRoleName(e.target.value)}
-              placeholder="Neue Rolle eingeben"
-              className="border p-2 rounded-md w-full"
-            />
-            <button
-              onClick={handleCreateRole}
-              className="mt-2 bg-green-500 text-white px-4 py-2 rounded-md w-full"
+  // Lokaler State
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
+  const [permissionsWithStatus, setPermissionsWithStatus] = useState<
+    { permission: Permission; status: "allow" | "neutral" | "deny" }[]
+  >([]);
+
+  // Lade alle Rollen (nur einmal beim Mount)
+  useEffect(() => {
+    getRoles().then((rolesData) => {
+      if (rolesData) setRoles(rolesData);
+    });
+  }, []);
+
+  // Lade alle Berechtigungen (nur einmal beim Mount)
+  useEffect(() => {
+    getPermissions().then((perms) => {
+      if (perms) setPermissions(perms);
+    });
+  }, []);
+
+  // Wenn eine Rolle ausgewählt wurde, lade ihre spezifischen Berechtigungen
+  useEffect(() => {
+    if (!selectedRole) return;
+    
+    getRolePermissions(selectedRole._id).then((rolePerms) => {
+      console.log("test");
+      if (rolePerms) {
+        setRolePermissions(rolePerms);
+
+        // Abgleich: Für jede Berechtigung prüfen, ob sie in den Rollen-Berechtigungen ist
+        const updatedPermissions = permissions.map((perm) => {
+          const matchingPermission = rolePerms.find((rp) => {
+            return typeof rp.permission === 'string'
+              ? rp.permission === perm._id
+              : rp.permission._id === perm._id;
+          });
+
+          return {
+            permission: perm,
+            status: matchingPermission ? (matchingPermission.effect as "allow" | "neutral" | "deny") : "neutral",
+          };
+        });
+
+        setPermissionsWithStatus(updatedPermissions);
+      }
+    });
+  }, [selectedRole, permissions]);
+
+  // Handler für den Toggle-Wechsel
+  const handleToggleChange = async (
+    permission: Permission,
+    newState: "allow" | "neutral" | "deny"
+  ) => {
+    // Ermittle den aktuellen Zustand der Berechtigung
+    const currentRP = rolePermissions.find((rp) => {
+      return typeof rp.permission === 'string'
+        ? rp.permission === permission._id
+        : rp.permission._id === permission._id;
+    });
+
+    const currentState = currentRP ? currentRP.effect : "neutral";
+
+    if (newState === currentState) return; // Keine Änderung
+
+    if (newState === "neutral") {
+      // Falls "neutral" gewählt wird: existierende Berechtigung löschen
+      if (currentRP && selectedRole) {
+        const success = await deleteRolePermission(selectedRole._id, permission._id);
+        if (success) {
+          setRolePermissions((prev) => prev.filter((rp) => rp.permission !== permission._id));
+          setPermissionsWithStatus((prev) =>
+            prev.map((p) =>
+              p.permission._id === permission._id ? { ...p, status: "neutral" } : p
+            )
+          );
+        }
+      }
+    } else {
+      // Falls "allow" oder "deny" gewählt wird: Berechtigung hinzufügen oder aktualisieren
+      if (selectedRole) {
+        const updatedRP = await addRolePermission(selectedRole._id, permission._id, newState);
+        if (updatedRP) {
+          setRolePermissions((prev) => [...prev, updatedRP]);
+          setPermissionsWithStatus((prev) =>
+            prev.map((p) =>
+              p.permission._id === permission._id ? { ...p, status: newState } : p
+            )
+          );
+        }
+      }
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex' }}>
+      {/* Linke Spalte: Übersicht aller Rollen */}
+      <div style={{ width: '30%', borderRight: '1px solid #ccc', padding: '1rem' }}>
+        <h2>Rollen</h2>
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {roles.map((role) => (
+            <li
+              key={role._id}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.5rem',
+              }}
             >
-              Rolle erstellen
-            </button>
+              <span>{role.name}</span>
+              <button
+                onClick={() => setSelectedRole(role)}
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
+              >
+                ✏️
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Rechte Spalte: Bearbeitungsbereich für die ausgewählte Rolle */}
+      <div style={{ width: '70%', padding: '1rem' }}>
+        {selectedRole ? (
+          <div>
+            <h2>Rolle bearbeiten: {selectedRole.name}</h2>
+            <table>
+              <tbody>
+                {permissionsWithStatus.map(({ permission, status }) => (
+                  <tr key={permission._id}>
+                    <td>{permission.name}</td>
+                    <td>
+                      <PermissionToggle
+                        currentState={status}
+                        onChange={(newState) => handleToggleChange(permission, newState)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-
-        {/* 🔹 Berechtigungen der ausgewählten Rolle */}
-        {selectedRole && (
-          <div className="w-2/3">
-            <h2 className="text-xl font-semibold mb-2">Berechtigungen für: {selectedRole.name}</h2>
-            <ul className="border rounded-md p-2 bg-gray-100">
-              {rolePermissions.length === 0 && <p>Keine Berechtigungen.</p>}
-              {rolePermissions.map((perm) => (
-                <li key={perm._id} className="p-2 flex justify-between">
-                  {perm.name}
-                  <button
-                    onClick={() => handleRemovePermission(perm._id)}
-                    className="bg-red-500 text-white px-2 py-1 rounded-md"
-                  >
-                    Entfernen
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            {/* 🔹 Berechtigung hinzufügen */}
-            <div className="mt-4">
-              <input
-                type="text"
-                value={newPermissionId}
-                onChange={(e) => setNewPermissionId(e.target.value)}
-                placeholder="Berechtigungs-ID eingeben"
-                className="border p-2 rounded-md w-full"
-              />
-              <button
-                onClick={handleAddPermission}
-                className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-md w-full"
-              >
-                Berechtigung hinzufügen
-              </button>
-            </div>
-
-            {/* 🔹 Rolle bearbeiten & löschen */}
-            <div className="mt-4 flex gap-4">
-              <button
-                onClick={handleUpdateRole}
-                className="bg-yellow-500 text-white px-4 py-2 rounded-md w-full"
-              >
-                Rolle umbenennen
-              </button>
-              <button
-                onClick={handleDeleteRole}
-                className="bg-red-500 text-white px-4 py-2 rounded-md w-full"
-              >
-                Rolle löschen
-              </button>
-            </div>
-          </div>
+        ) : (
+          <p>Wähle eine Rolle zum Bearbeiten aus</p>
         )}
       </div>
     </div>
   );
 };
 
-export default RolesPage;
+export default RolesManagement;

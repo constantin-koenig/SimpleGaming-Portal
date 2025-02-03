@@ -29,7 +29,6 @@ module.exports = async function authMiddleware(req, res, next) {
 
     next();
   } catch (error) {
-    console.error('Error verifying access token:', error.message);
     return res.status(401).send('Invalid access token');
   }
 };

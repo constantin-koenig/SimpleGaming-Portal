@@ -4,7 +4,7 @@ import { AuthProvider } from "./context/AuthContext"; // Importiere den AuthProv
 import Login from "./components/Login";
 import Callback from "./components/Callback";
 import Dashboard from "./pages/dashboard";
-import RolePage from "./pages/RolePage";
+import AdminPage from "./pages/AdminPage";
 
 const App: React.FC = () => {
     return (
@@ -20,7 +20,7 @@ const App: React.FC = () => {
 
                         {/* Protected Route */}
                         <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/roles" element={<RolePage />} />
+                        <Route path="/admin" element={<AdminPage />} />
 
                         {/* Optional: Fallback for undefined routes */}
                         <Route

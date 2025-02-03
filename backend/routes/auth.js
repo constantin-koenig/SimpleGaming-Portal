@@ -230,7 +230,6 @@ router.post('/callback', async (req, res) => {
 // Token refresh route
 router.post('/refresh', verifyRefreshToken, async (req, res) => {
     try {
-        console.log('Refresh token verified, user ID:', req.userId);
         const userId = req.userId;
 
         // Generate new access token

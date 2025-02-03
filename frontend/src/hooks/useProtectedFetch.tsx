@@ -75,7 +75,6 @@ export const useProtectedFetch = () => {
       throw new Error(`Fehler beim Abrufen der geschützten Ressource: ${response.status}`);
     } catch (error) {
       console.error(error);
-      navigate("/login");
       return null;
     }
   };

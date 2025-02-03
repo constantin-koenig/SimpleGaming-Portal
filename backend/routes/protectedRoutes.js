@@ -8,17 +8,7 @@ const Role = require("../models/Roles");
 const Permission = require("../models/Permissions");
 const RolePermission = require("../models/Role_Permissions");
 
-// Beispiel: Nur User mit "view_account" Permission
-router.get('/user/dashboard', 
-  authMiddleware,
-  requirePermission(['user_view_dashboard']), 
-  (req, res) => {
-    res.send('Willkommen auf deiner Dashboard-Seite!');
-  }
-);
-
-router.get(
-  "/user/userinfo",
+router.get("/user/userinfo",
   authMiddleware,
   requirePermission(["view_account"]),
   (req, res) => {
@@ -34,17 +24,19 @@ router.get(
 );
 
 // 📌 1️⃣ Eine neue Rolle erstellen
-router.post(
-  "/roles",
+router.post("/roles",
   authMiddleware,
   requirePermission(["manage_roles"]),
   async (req, res) => {
+    console.log('create role');
     try {
+      console.log(req.body);
       const { name } = req.body;
       if (!name) return res.status(400).json({ message: "Name ist erforderlich" });
 
-      const role = new Role({ name });
+      const role = new Role({ name: name, priority: 2 });
       await role.save();
+      console.log("erstellen erfolgreich");
 
       res.status(201).json(role);
     } catch (error) {
@@ -120,8 +112,7 @@ router.get(
   async (req, res) => {
     try {
       const { roleId } = req.params;
-
-      const rolePermissions = await RolePermission.find({ roleId }).populate("permissionId");
+      const rolePermissions = await RolePermission.find({ role: roleId }).populate("permission");
       res.json(rolePermissions);
     } catch (error) {
       res.status(500).json({ message: "Fehler beim Abrufen der Berechtigungen", error });
@@ -136,20 +127,33 @@ router.post(
   requirePermission(["manage_roles"]),
   async (req, res) => {
     try {
+      const { permissionId, action } = req.body;
       const { roleId } = req.params;
-      const { permissionId } = req.body;
+      if (!permissionId || !action || !["allow", "deny"].includes(action)) {
+        console.log("ungültige Parameter");
+        return res.status(400).json({ message: "Ungültige Parameter" });
+      }
 
-      const rolePermission = new RolePermission({ roleId, permissionId });
-      await rolePermission.save();
+      // Prüfen, ob bereits ein Override existiert und diesen ggf. updaten
+      let rolePermission = await RolePermission.findOne({ role: roleId, permission: permissionId });
+      if (rolePermission) {
+        rolePermission.effect = action;
+        await rolePermission.save();
+        console.log("aktualisieren erfolgreich");
+      } else {
+        console.log("hinzufügen erfolgreich");
+        rolePermission = new RolePermission({ role: roleId, permission: permissionId, effect: action });
+        await rolePermission.save();
+      }
 
-      res.status(201).json(rolePermission);
+      res.json(rolePermission);
     } catch (error) {
-      res.status(500).json({ message: "Fehler beim Hinzufügen der Berechtigung", error });
+      res.status(500).json({ message: "Fehler beim Hinzufügen/Aktualisieren der Berechtigung", error });
     }
   }
 );
 
-// 📌 7️⃣ Berechtigung einer Rolle entfernen
+// 🔹 Berechtigung von einer Rolle entfernen
 router.delete(
   "/roles/:roleId/permissions/:permissionId",
   authMiddleware,
@@ -157,13 +161,26 @@ router.delete(
   async (req, res) => {
     try {
       const { roleId, permissionId } = req.params;
-
-      const deletedPermission = await RolePermission.findOneAndDelete({ roleId, permissionId });
-      if (!deletedPermission) return res.status(404).json({ message: "Berechtigung nicht gefunden" });
-
+      const deleted = await RolePermission.findOneAndDelete({ role: roleId, permission: permissionId });
+      if (!deleted) return res.status(404).json({ message: "Berechtigung nicht gefunden" });
       res.json({ message: "Berechtigung erfolgreich entfernt" });
     } catch (error) {
       res.status(500).json({ message: "Fehler beim Entfernen der Berechtigung", error });
+    }
+  }
+);
+
+// 🔹 Alle Berechtigungen abrufen
+router.get(
+  "/permissions",
+  authMiddleware,
+  requirePermission(["manage_roles"]),
+  async (req, res) => {
+    try {
+      const permissions = await Permission.find();
+      res.json(permissions);
+    } catch (error) {
+      res.status(500).json({ message: "Fehler beim Abrufen der Berechtigungen", error });
     }
   }
 );
