@@ -8,7 +8,7 @@ async function initializeSystem() {
   // 1. Rollen anlegen, falls sie nicht existieren
   let ownerRole = await Role.findOne({ name: 'Owner' });
   if (!ownerRole) {
-    ownerRole = new Role({ name: 'Owner', priority: 1 });
+    ownerRole = new Role({ name: 'Owner', priority: 0 });
     await ownerRole.save();
     console.log('Owner-Rolle erstellt');
   }
@@ -21,7 +21,7 @@ async function initializeSystem() {
   }
 
   // 2. Grundlegende Permissions anlegen
-  const basePermissions = ['view_account', 'manage_roles'];
+  const basePermissions = ['view_account', 'manage_roles', 'manage_users', 'view_users'];
   for (const permName of basePermissions) {
     let perm = await Permission.findOne({ name: permName });
     if (!perm) {

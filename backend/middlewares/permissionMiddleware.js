@@ -20,19 +20,7 @@ async function getUserPermissions(userId) {
     return { allowed: new Set(), denied: new Set(), isOwner: false };
   }
 
-  // Check, ob eine Rolle priority=1 hat
-  const hasOwnerRole = userRoles.some(ur => ur.role.priority === 1);
-
-  // Wenn User = Owner, geben wir gleich eine Info zurück
-  if (hasOwnerRole) {
-    return {
-      allowed: new Set(), 
-      denied: new Set(), 
-      isOwner: true
-    };
-  }
-
-  // 2. Ansonsten: Sammle alle RolePermissions
+  // 2. Rollen-Permissions finden (Role_Permissions)
   const roleIds = userRoles.map(ur => ur.role._id);
   const rpList = await RolePermission
     .find({ role: { $in: roleIds } })
@@ -50,7 +38,6 @@ async function getUserPermissions(userId) {
       denied.add(permName);
     }
   });
-
   return { allowed, denied, isOwner: false };
 }
 

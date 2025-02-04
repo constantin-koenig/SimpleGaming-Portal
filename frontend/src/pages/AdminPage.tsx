@@ -1,17 +1,19 @@
-// 📌 AdminPage.tsx
-// The admin dashboard, including the RolePermissionsManager component.
-
+// AdminPanel.tsx
 import React from 'react';
-import RolePermissionsManager from '../components/RolePermissonsManager';
+import RoleManager from '../components/RoleManager'; // Importiere die Rollenverwaltung
 
-const AdminPage: React.FC = () => {
+const AdminPanel: React.FC = () => {
   return (
-    <div style={{ padding: '2rem' }}>
-      <h1>Admin Dashboard</h1>
-      <p>Manage roles and their permissions below:</p>
-      <RolePermissionsManager />
+    <div style={{ display: 'flex', flexDirection: 'column', padding: '2rem' }}>
+      <h1>Admin Panel</h1>
+      
+      {/* Hier fügst du den RoleManager zentriert ein */}
+      <section style={{ marginTop: '2rem' }}>
+        <h2>Rollenverwaltung</h2>
+        <RoleManager />
+      </section>
     </div>
   );
 };
 
-export default AdminPage;
+export default AdminPanel;

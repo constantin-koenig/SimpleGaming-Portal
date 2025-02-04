@@ -9,7 +9,6 @@ module.exports = async function authMiddleware(req, res, next) {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ message: "Unauthorized: No token provided" });
     }
-
     // Extrahieren des Tokens aus dem Header
     const token = authHeader.split(" ")[1];
 

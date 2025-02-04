@@ -114,14 +114,14 @@ router.post('/callback', async (req, res) => {
                   console.log('First User -> Owner Role assigned');
                 }
             }
-            else {
-                // If not first user, assign user role
-                const defaultUserRole = await Role.findOne({ name: 'User' });
-                if (defaultUserRole) {
-                  await UserRole.create({ user: user._id, role: defaultUserRole._id });
-                  console.log('New User -> User Role assigned');
-                }
+
+            // If not first user, assign user role
+            const defaultUserRole = await Role.findOne({ name: 'User' });
+            if (defaultUserRole) {
+                await UserRole.create({ user: user._id, role: defaultUserRole._id });
+                console.log('New User -> User Role assigned');
             }
+            
          }
  
          // Save Discord refresh token

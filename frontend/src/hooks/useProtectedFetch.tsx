@@ -12,15 +12,12 @@ export const useProtectedFetch = () => {
   ) => {
     try {
       let token = accessToken;
-      console.log("Aktuelles Access Token:", token);
 
       if (!token) {
         token = await renewAccessToken();
-        console.log("Token erneuert:", token);
       }
 
       if (!token) {
-        console.error("Kein gültiger Token erhalten.");
         navigate("/login");
         return null;
       }
@@ -41,11 +38,9 @@ export const useProtectedFetch = () => {
 
       // Falls das Token abgelaufen ist, versuchen wir es zu erneuern und den Request erneut zu senden
       if (response.status === 401) {
-        console.warn("Token ungültig, erneuere Token...");
         token = await renewAccessToken();
 
         if (!token) {
-          console.error("Token-Erneuerung fehlgeschlagen.");
           navigate("/login");
           return null;
         }
@@ -57,10 +52,6 @@ export const useProtectedFetch = () => {
 
         response = await fetch(resourceUrl, fetchOptions);
 
-        if (!response.ok) {
-          throw new Error("Fehler nach Token-Erneuerung.");
-        }
-        console.log("Neuer Versuch erfolgreich");
       }
 
       if (response.status === 403) {

@@ -68,9 +68,10 @@ export const useGetRoles = () => {
 export const useUpdateRole = () => {
   const protectedFetch = useProtectedFetch();
 
-  const updateRole = useCallback(async (roleId: string, name: string): Promise<Role | null> => {
+  const updateRole = useCallback(async (roleId: string, roleData: { name: string }): Promise<Role | null> => {
     const url = `${BASE_URL}/roles/${roleId}`;
-    const responseText = await protectedFetch(url, "PUT", { name });
+    console.log("🔹 Updating role with data:", roleData);
+    const responseText = await protectedFetch(url, "PUT", { roleData });
     if (!responseText || responseText === "Ressource geschützt") return null;
     try {
       const updatedRole: Role = JSON.parse(responseText);

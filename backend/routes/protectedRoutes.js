@@ -7,6 +7,8 @@ const { requirePermission } = require('../middlewares/permissionMiddleware');
 const Role = require("../models/Roles");
 const Permission = require("../models/Permissions");
 const RolePermission = require("../models/Role_Permissions");
+const UserRole= require("../models/User_Role");
+const User= require("../models/User");
 
 router.get("/user/userinfo",
   authMiddleware,
@@ -23,20 +25,102 @@ router.get("/user/userinfo",
   }
 );
 
+// 📌 1️⃣ Alle Benutzer abrufen
+router.get("/users", authMiddleware,  requirePermission(["view_users"]), async (req, res) => {
+  try {
+    // Alle Benutzer aus der Datenbank abrufen
+    const users = await User.find();
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Fehler beim Abrufen der Benutzerliste", error });
+  }
+});
+
+// 📌 1️⃣ Mitglieder einer Rolle abrufen
+router.get("/roles/:roleId/members", authMiddleware, requirePermission(["manage_roles", "manage_users"]), async (req, res) => {
+  try {
+    const { roleId } = req.params;
+
+    // Finde alle User-Rollen-Verknüpfungen für diese Rolle
+    const userRoles = await UserRole.find({ role: roleId }).populate("user");
+ 
+    // Extrahiere die Benutzer
+    const members = userRoles.map((ur) => ur.user);
+    res.json(members);
+  } catch (error) {
+    res.status(500).json({ message: "Fehler beim Abrufen der Rollen-Mitglieder", error });
+  }
+});
+
+// 📌 2️⃣ Benutzer zu einer Rolle hinzufügen
+router.post("/roles/:roleId/members", authMiddleware, requirePermission(["manage_roles", "manage_users"]), async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID ist erforderlich" });
+    }
+
+    // Prüfen, ob die Rolle existiert
+    const role = await Role.findById(roleId);
+    if (!role) {
+      return res.status(404).json({ message: "Rolle nicht gefunden" });
+    }
+
+
+    // Prüfen, ob der Benutzer bereits in der Rolle ist
+    const existingUserRole = await UserRole.findOne({ user: userId, role: roleId });
+    if (existingUserRole) {
+      return res.status(400).json({ message: "Benutzer ist bereits in dieser Rolle" });
+    }
+
+    // Benutzer zur Rolle hinzufügen
+    const newUserRole = new UserRole({ user: userId, role: roleId });
+    await newUserRole.save();
+
+    res.status(201).json({ message: "Benutzer erfolgreich zur Rolle hinzugefügt", userRole: newUserRole });
+  } catch (error) {
+    res.status(500).json({ message: "Fehler beim Hinzufügen des Benutzers zur Rolle", error });
+  }
+});
+
+// 📌 3️⃣ Benutzer aus einer Rolle entfernen
+router.delete("/roles/:roleId/members/:userId", authMiddleware, requirePermission(["manage_roles", "manage_users"]), async (req, res) => {
+  try {
+    const { roleId, userId } = req.params;
+
+    // Prüfen, ob die Rolle existiert
+    const role = await Role.findById(roleId);
+    if (!role) {
+      return res.status(404).json({ message: "Rolle nicht gefunden" });
+    }
+
+    // Benutzer aus der Rolle entfernen
+    const deletedUserRole = await UserRole.findOneAndDelete({ user: userId, role: roleId });
+
+    if (!deletedUserRole) {
+      return res.status(404).json({ message: "Benutzer nicht in dieser Rolle gefunden" });
+    }
+
+    res.json({ message: "Benutzer erfolgreich aus der Rolle entfernt" });
+  } catch (error) {
+    res.status(500).json({ message: "Fehler beim Entfernen des Benutzers aus der Rolle", error });
+  }
+});
+
+
 // 📌 1️⃣ Eine neue Rolle erstellen
 router.post("/roles",
   authMiddleware,
   requirePermission(["manage_roles"]),
   async (req, res) => {
-    console.log('create role');
     try {
-      console.log(req.body);
       const { name } = req.body;
       if (!name) return res.status(400).json({ message: "Name ist erforderlich" });
 
       const role = new Role({ name: name, priority: 2 });
       await role.save();
-      console.log("erstellen erfolgreich");
 
       res.status(201).json(role);
     } catch (error) {
@@ -67,7 +151,7 @@ router.put(
   requirePermission(["manage_roles"]),
   async (req, res) => {
     try {
-      const { name } = req.body;
+      const { name } = req.body.roleData;
       const { roleId } = req.params;
 
       const updatedRole = await Role.findByIdAndUpdate(
@@ -94,8 +178,20 @@ router.delete(
     try {
       const { roleId } = req.params;
 
-      const deletedRole = await Role.findByIdAndDelete(roleId);
-      if (!deletedRole) return res.status(404).json({ message: "Rolle nicht gefunden" });
+      // 🛑 Überprüfe, ob die Rolle mit priority 0 geschützt ist
+      const roleToDelete = await Role.findById(roleId);
+      if (!roleToDelete) {
+        return res.status(404).json({ message: "Rolle nicht gefunden" });
+      }
+
+      if (roleToDelete.priority === 0) {
+        return res.status(403).json({ message: "Diese Rolle kann nicht gelöscht werden" });
+      }
+
+      // ✅ Rolle darf gelöscht werden
+      await Role.findByIdAndDelete(roleId);
+      await RolePermission.deleteMany({ role: roleId });
+      await UserRole.deleteMany({ role: roleId });
 
       res.json({ message: "Rolle erfolgreich gelöscht" });
     } catch (error) {
@@ -103,6 +199,7 @@ router.delete(
     }
   }
 );
+
 
 // 📌 5️⃣ Berechtigungen einer Rolle anzeigen
 router.get(
@@ -130,18 +227,14 @@ router.post(
       const { permissionId, action } = req.body;
       const { roleId } = req.params;
       if (!permissionId || !action || !["allow", "deny"].includes(action)) {
-        console.log("ungültige Parameter");
         return res.status(400).json({ message: "Ungültige Parameter" });
       }
 
-      // Prüfen, ob bereits ein Override existiert und diesen ggf. updaten
       let rolePermission = await RolePermission.findOne({ role: roleId, permission: permissionId });
       if (rolePermission) {
         rolePermission.effect = action;
         await rolePermission.save();
-        console.log("aktualisieren erfolgreich");
       } else {
-        console.log("hinzufügen erfolgreich");
         rolePermission = new RolePermission({ role: roleId, permission: permissionId, effect: action });
         await rolePermission.save();
       }

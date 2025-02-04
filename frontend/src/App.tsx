@@ -6,6 +6,7 @@ import Callback from "./components/Callback";
 import Dashboard from "./pages/dashboard";
 import AdminPage from "./pages/AdminPage";
 
+
 const App: React.FC = () => {
     return (
         <AuthProvider>
