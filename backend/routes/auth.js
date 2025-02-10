@@ -108,7 +108,7 @@ router.post('/callback', async (req, res) => {
              await user.save();
              console.log(`New user created: ${user.discordId}`);
              if (userCount === 0) {
-                const ownerRole = await Role.findOne({ name: 'Owner' });
+                const ownerRole = await Role.findOne({ name: 'Superadmin' });
                 if (ownerRole) {
                   await UserRole.create({ user: user._id, role: ownerRole._id });
                   console.log('First User -> Owner Role assigned');
@@ -134,7 +134,7 @@ router.post('/callback', async (req, res) => {
 
         // Generate JWT Access token
         const accessToken = jwt.sign({
-            id: userData.id
+            id: user._id
         }, process.env.JWT_SECRET, { expiresIn: '15s' });
 
         // Generate own refresh token
@@ -142,11 +142,11 @@ router.post('/callback', async (req, res) => {
         const encryptedToken = encrypt(generatedRefreshToken);
 
         // Delete old tokens for the user
-        await OwnRefreshToken.deleteMany({ userId: userData.id });
+        await OwnRefreshToken.deleteMany({ userId: user._id });
 
         // Save own refresh token
         await OwnRefreshToken.create({
-            userId: userData.id,
+            userId: user._id,
             token: generatedRefreshToken,
             expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days expiration
         });
@@ -233,13 +233,13 @@ router.post('/refresh', verifyRefreshToken, async (req, res) => {
         const userId = req.userId;
 
         // Generate new access token
-        const user = await User.findOne({ discordId: userId });
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).send('User not found');
         }
 
         const newAccessToken = jwt.sign({
-            id: user.discordId
+            id: user._id
         }, process.env.JWT_SECRET, { expiresIn: '15s' });
 
         res.status(200).json({

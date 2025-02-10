@@ -20,13 +20,14 @@ const RoleManager: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [activeTab, setActiveTab] = useState<'Anzeige' | 'Berechtigungen' | 'Mitglieder'>('Anzeige');
   const [roleName, setRoleName] = useState<string>('');
+  const [rolePriority, setRolePriority] = useState<number>(2); // Standard: User
   const [newRoleName, setNewRoleName] = useState<string>('');
+  const [newRolePriority, setNewRolePriority] = useState<number>(2);
   const [showNewRoleForm, setShowNewRoleForm] = useState<boolean>(false);
 
-  // Rollen laden
   useEffect(() => {
     fetchRoles();
-  }, []);
+  }, [activeTab, selectedRole]);
 
   const fetchRoles = async () => {
     const rolesData = await getRoles();
@@ -38,15 +39,16 @@ const RoleManager: React.FC = () => {
   const handleSelectRole = (role: Role) => {
     setSelectedRole(role);
     setRoleName(role.name);
+    setRolePriority(role.priority || 2);
     setActiveTab((prevTab) => prevTab); // Behalte den aktuellen Tab bei
   };
 
-  const handleRoleNameChange = async () => {
+  const handleRoleUpdate = async () => {
     if (selectedRole && roleName.trim() !== '') {
-      const updated = await updateRole(selectedRole._id, { name: roleName });
+      const updated = await updateRole(selectedRole._id, { name: roleName, priority: rolePriority });
       if (updated) {
         fetchRoles();
-        setSelectedRole({ ...selectedRole, name: roleName });
+        setSelectedRole({ ...selectedRole, name: roleName, priority: rolePriority });
       }
     }
   };
@@ -64,10 +66,11 @@ const RoleManager: React.FC = () => {
 
   const handleCreateRole = async () => {
     if (newRoleName.trim() !== '') {
-      const newRole = await createRole( newRoleName );
+      const newRole = await createRole(  newRoleName,  newRolePriority );
       if (newRole) {
         fetchRoles();
         setNewRoleName('');
+        setNewRolePriority(2);
         setShowNewRoleForm(false);
       }
     }
@@ -103,6 +106,15 @@ const RoleManager: React.FC = () => {
               placeholder="Neuer Rollenname"
               style={{ padding: '4px', border: '1px solid #ccc', borderRadius: '4px' }}
             />
+            <select
+              value={newRolePriority}
+              onChange={(e) => setNewRolePriority(Number(e.target.value))}
+              style={{ marginLeft: '10px', padding: '4px', border: '1px solid #ccc', borderRadius: '4px' }}
+            >
+              <option value={1}>Admin</option>
+              <option value={2}>User</option>
+              <option value={3}>Service</option>
+            </select>
             <button
               onClick={handleCreateRole}
               style={{
@@ -162,85 +174,26 @@ const RoleManager: React.FC = () => {
             <h2>Rolle bearbeiten: {selectedRole.name}</h2>
             {/* Tab-Navigation */}
             <div style={{ marginBottom: '1rem' }}>
-              <button
-                style={{
-                  background: activeTab === 'Anzeige' ? '#ccc' : 'transparent',
-                  border: '1px solid #ccc',
-                  padding: '0.5rem 1rem',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setActiveTab('Anzeige')}
-              >
-                Anzeige
-              </button>
-              <button
-                style={{
-                  background: activeTab === 'Berechtigungen' ? '#ccc' : 'transparent',
-                  border: '1px solid #ccc',
-                  padding: '0.5rem 1rem',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setActiveTab('Berechtigungen')}
-              >
-                Berechtigungen
-              </button>
-              <button
-                style={{
-                  background: activeTab === 'Mitglieder' ? '#ccc' : 'transparent',
-                  border: '1px solid #ccc',
-                  padding: '0.5rem 1rem',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setActiveTab('Mitglieder')}
-              >
-                Mitglieder
-              </button>
+              <button onClick={() => setActiveTab('Anzeige')}>Anzeige</button>
+              <button onClick={() => setActiveTab('Berechtigungen')}>Berechtigungen</button>
+              <button onClick={() => setActiveTab('Mitglieder')}>Mitglieder</button>
             </div>
 
             {/* Tab-Inhalt */}
             {activeTab === 'Anzeige' && (
               <div>
-                <label>
-                  Name:
-                  <input
-                    type="text"
-                    value={roleName}
-                    onChange={(e) => setRoleName(e.target.value)}
-                    style={{
-                      marginLeft: '8px',
-                      padding: '4px',
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                    }}
-                  />
-                </label>
-                <button
-                  onClick={handleRoleNameChange}
-                  style={{
-                    marginLeft: '10px',
-                    padding: '5px 10px',
-                    background: 'blue',
-                    color: 'white',
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Speichern
-                </button>
+                <label>Name:</label>
+                <input type="text" value={roleName} onChange={(e) => setRoleName(e.target.value)} />
+                
+                <label>Priorität:</label>
+                <select value={rolePriority} onChange={(e) => setRolePriority(Number(e.target.value))}>
+                  <option value={1}>Admin</option>
+                  <option value={2}>User</option>
+                  <option value={3}>Service</option>
+                </select>
 
-                <button
-                  onClick={handleDeleteRole}
-                  style={{
-                    marginLeft: '10px',
-                    padding: '5px 10px',
-                    background: 'red',
-                    color: 'white',
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Rolle löschen
-                </button>
+                <button onClick={handleRoleUpdate}>Speichern</button>
+                <button onClick={handleDeleteRole}>Rolle löschen</button>
               </div>
             )}
             {activeTab === 'Berechtigungen' && <PermissionsManager selectedRole={selectedRole} />}

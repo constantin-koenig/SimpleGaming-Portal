@@ -17,13 +17,13 @@ module.exports = async function authMiddleware(req, res, next) {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ discordId: decoded.id });
+    const user = await User.findById( decoded.id );
     if (!user) {
       return res.status(404).send('User not found in database');
     }
 
     // Speichere im Request
-    req.userId = user.discordId; 
+    req.userId = user._id; 
     req.user = user;      // optional, dann hast du das User-Objekt direkt
 
     next();

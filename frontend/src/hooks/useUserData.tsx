@@ -21,7 +21,7 @@ export const useUserData = () => {
     setLoading(true);
     setError(null);
 
-    const data = await fetchProtectedResource("/api/protected/user/userinfo");
+    const data = await fetchProtectedResource("/api/protected/users/me/userinfo");
 
     if (data === "Ressource geschützt") {
       setError("Zugriff verweigert. Bitte überprüfe deine Berechtigungen.");

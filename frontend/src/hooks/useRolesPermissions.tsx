@@ -28,9 +28,9 @@ const BASE_URL = "/api/protected";
 export const useCreateRole = () => {
   const protectedFetch = useProtectedFetch();
 
-  const createRole = useCallback(async (name: string): Promise<Role | null> => {
+  const createRole = useCallback(async (name: string, priority: number): Promise<Role | null> => {
     const url = `${BASE_URL}/roles`;
-    const responseText = await protectedFetch(url, "POST", { name });
+    const responseText = await protectedFetch(url, "POST", { name, priority});
     if (!responseText || responseText === "Ressource geschützt") return null;
     try {
       const role: Role = JSON.parse(responseText);
@@ -68,9 +68,8 @@ export const useGetRoles = () => {
 export const useUpdateRole = () => {
   const protectedFetch = useProtectedFetch();
 
-  const updateRole = useCallback(async (roleId: string, roleData: { name: string }): Promise<Role | null> => {
+  const updateRole = useCallback(async (roleId: string, roleData: { name: string, priority: number }): Promise<Role | null> => {
     const url = `${BASE_URL}/roles/${roleId}`;
-    console.log("🔹 Updating role with data:", roleData);
     const responseText = await protectedFetch(url, "PUT", { roleData });
     if (!responseText || responseText === "Ressource geschützt") return null;
     try {
@@ -105,17 +104,33 @@ export const useDeleteRole = () => {
   return { deleteRole };
 };
 
-// 5️⃣ Hook: Berechtigungen einer Rolle anzeigen
+// 9️⃣ Hook: Berechtigungen einer Rolle abrufen + welche bearbeitet werden dürfen
 export const useGetRolePermissions = () => {
   const protectedFetch = useProtectedFetch();
 
-  const getRolePermissions = useCallback(async (roleId: string): Promise<RolePermission[] | null> => {
+  const getRolePermissions = useCallback(async (roleId: string): Promise<{ rolePermissions: RolePermission[]; editable: string[] } | null> => {
     const url = `${BASE_URL}/roles/${roleId}/permissions`;
     const responseText = await protectedFetch(url, "GET");
+
     if (!responseText || responseText === "Ressource geschützt") return null;
+
     try {
-      const rolePermissions: RolePermission[] = JSON.parse(responseText);
-      return rolePermissions;
+      const responseData = JSON.parse(responseText);
+
+      // Prüfen, ob das Backend die erwarteten Daten liefert
+      if (!responseData.rolePermissions || !Array.isArray(responseData.rolePermissions)) {
+        console.error("Fehler: Ungültige API-Antwort (fehlende rolePermissions)");
+        return null;
+      }
+      if (!responseData.editablePermissions || !Array.isArray(responseData.editablePermissions)) {
+        console.error("Fehler: Ungültige API-Antwort (fehlende editable-Liste)");
+        return null;
+      }
+
+      return {
+        rolePermissions: responseData.rolePermissions, // Berechtigungen dieser Rolle
+        editable: responseData.editablePermissions, // Liste der bearbeitbaren Berechtigungen für diese Rolle
+      };
     } catch (error) {
       console.error("Fehler beim Parsen der Rollen-Berechtigungen:", error);
       return null;
@@ -124,6 +139,8 @@ export const useGetRolePermissions = () => {
 
   return { getRolePermissions };
 };
+
+
 
 // 6️⃣ Hook: Berechtigung einer Rolle hinzufügen/aktualisieren
 export const useAddRolePermission = () => {
@@ -157,8 +174,8 @@ export const useDeleteRolePermission = () => {
     roleId: string,
     permissionId: string
   ): Promise<boolean> => {
-    const url = `${BASE_URL}/roles/${roleId}/permissions/${permissionId}`;
-    const responseText = await protectedFetch(url, "DELETE");
+    const url = `${BASE_URL}/roles/${roleId}/permissions`;
+    const responseText = await protectedFetch(url, "DELETE", { permissionId });
     if (!responseText || responseText === "Ressource geschützt") return false;
     try {
       const responseObj = JSON.parse(responseText);
@@ -188,6 +205,30 @@ export const useGetPermissions = () => {
       return null;
     }
   }, [protectedFetch]);
+  
 
   return { getPermissions };
+
+};
+
+// 9️⃣ Hook: Benutzer-Priorität abrufen
+export const useGetUserPriority = () => {
+  const protectedFetch = useProtectedFetch();
+
+  const getUserPriority = useCallback(async (): Promise<number> => {
+    const url = `${BASE_URL}/users/me/priority`;
+    const responseText = await protectedFetch(url, "GET");
+
+    if (!responseText || responseText === "Ressource geschützt") return 3; // Standard: niedrigste Priorität
+
+    try {
+      const data = JSON.parse(responseText);
+      return data.priority ?? 3; // Falls keine Priorität vorhanden ist, Standardwert 3 (Service)
+    } catch (error) {
+      console.error("Fehler beim Abrufen der Benutzerpriorität:", error);
+      return 3;
+    }
+  }, [protectedFetch]);
+
+  return { getUserPriority };
 };

@@ -6,7 +6,10 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
-const protectedRoutes = require('./routes/protectedRoutes');
+const userRoutes = require('./routes/user');
+const rolesRoutes = require('./routes/roles');
+const permissionsRoutes = require('./routes/permissions');
+
 const { initializeSystem } = require('./utils/seed');
 
 initializeSystem();
@@ -31,10 +34,17 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// API routes
+// Auth routes
 app.use('/api/auth', authRoutes);
 
-app.use('/api/protected', protectedRoutes);
+// User routes
+app.use('/api/protected/users', userRoutes);
+
+// Roles routes
+app.use('/api/protected/roles', rolesRoutes);
+
+// Permisssions routes
+app.use('/api/protected/permissions', permissionsRoutes);
 
 app.get('/', (req, res) => res.send('Backend is running!'));
 

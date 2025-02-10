@@ -94,9 +94,9 @@ export const useGetAllUsers = () => {
 
         const baseURL = "https://cdn.discordapp.com/avatars/";
         const avatarHash = user.avatar;
-        const userId = user.discordId;
+        const discordId = user.discordId;
         const avatarExtension = avatarHash.startsWith("a") ? ".gif" : ".png";
-        const avatarURL = `${baseURL}${userId}/${avatarHash}${avatarExtension}`;
+        const avatarURL = `${baseURL}${discordId}/${avatarHash}${avatarExtension}`;
 
         return { ...user, avatarURL };
       });
